@@ -44,12 +44,4 @@ public class InvoiceModel {
 	private double rate;
 	private double amount;
 	private String total;
-	private List<String> employeeName;
-	private List<String> annexDescription;
-	private List<String> annexQty;
-	private List<String> annexRate;
-	private List<String> annexAmount;
-	
-	
-	
 }

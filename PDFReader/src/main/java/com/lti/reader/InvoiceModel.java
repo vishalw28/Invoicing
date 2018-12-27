@@ -8,13 +8,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Data
 @Builder
 @ToString
 public class InvoiceModel {
-	private String billerName;
+//	private String billerName;
 //	private String billerAddress;
 //	private String billerTelNo;
 //	private String billerFax;
@@ -34,14 +34,11 @@ public class InvoiceModel {
 	private String contractNo;
 	private String contractDate;
 	private String purchaseOrder;
-	private String paymentTerm;
-	private String paymentBefore;
+//	private String paymentTerm;
+//	private String paymentBefore;
 	private String billingPeriod;
-	private String sNo;
-	private String description;
-	private int qty;
-	private String uom;
-	private double rate;
-	private double amount;
+	
+	private List<Employee> employee;
+	
 	private String total;
 }

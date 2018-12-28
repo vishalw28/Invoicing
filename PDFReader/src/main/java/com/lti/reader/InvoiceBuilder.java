@@ -1,5 +1,7 @@
 package com.lti.reader;
 
+import java.util.Map;
+
 public interface InvoiceBuilder {
-	InvoiceModel build(String[] lines);
+	InvoiceModel verifyInvoiceDetails(String[] lines, Map<String, Employee> empDetailMap);
 }

@@ -10,12 +10,24 @@ import static com.lti.reader.Invoice.OFFSITE_HRS;
 import static com.lti.reader.Invoice.ONSITE_HRS;
 import static com.lti.reader.Invoice.PERSON_HRS;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.BiFunction;
+import java.util.Map;
 import java.util.function.Function;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import com.lti.reader.Employee.EmployeeBuilder;
 import com.lti.reader.InvoiceModel.InvoiceModelBuilder;
+
 
 public class InvoicingUtility {
 	
@@ -28,8 +40,8 @@ public class InvoicingUtility {
 			.substring((s1.indexOf(FINAL_TOTAL.getVal()) + FINAL_TOTAL.getVal().length())).trim();
 
 	//Extract info from Annexure part.
-	static BiFunction<String, String, Employee> getEmployeeDetails = (name, detail) -> {
-		System.out.println("Processing line: "+ detail);
+	static Function<List<String>, Employee> getEmployeeDetails = list -> {
+		String detail = list.get(1);
 		int startIndex = detail.startsWith(ONSITE_HRS.getVal()) ? ONSITE_HRS.getVal().length()
 				: OFFSITE_HRS.getVal().length();
 		startIndex++;
@@ -40,7 +52,9 @@ public class InvoicingUtility {
 				.qty(detail.substring(startIndex, startIndex + detail.substring(startIndex).indexOf(" ")))
 				.rate(prices[0])
 				.amt(prices[1])
-				.name(name)
+				.name(list.get(0))
+				.attn(list.get(2))
+				.poNo(list.get(3))
 				.build();
 				
 		return emp;
@@ -57,39 +71,92 @@ public class InvoicingUtility {
 	//Extract Attn
 	static Function<String, String> getAttn = str -> str.split(ATTN.getVal())[0].trim();
 	
-	private static InvoiceBuilder builder = (list) -> {
-		
+	//Extract Purchase order
+	static Function<String, String> getPO = str -> str.split(" ")[2];
+	
+	private static InvoiceBuilder builder = (list, map) -> {
+		String attn = null, po = null;
 		InvoiceModelBuilder builder =  InvoiceModel.builder();
 		for (int i = 0; i < list.length; i++) {
 			String str = list[i];
 			if (str.contains(BILLING_PERIOD.getVal())) {
 				builder.billingPeriod(extractBillingPeriod.apply(str));
 			}else if (str.startsWith(ANNEX_HEADER.getVal())) {
-				List<Employee> empList = new ArrayList<>();
 				i++;
 				for (; i < list.length;) {
 					if (list[i].contains(FINAL_TOTAL.getVal())) {
 						builder.total(extractFinalTotal.apply(str));
-						
 					} else {
-						empList.add(getEmployeeDetails.apply(list[i], list[i+1]));
+						//empList.add(getEmployeeDetails.apply(Arrays.asList(list[i], list[i+1], attn)));
+						Employee emp = getEmployeeDetails.apply(Arrays.asList(list[i], list[i+1], attn, po));
+//						if(map.get(emp.getName()) != null)
+//							System.out.println("\nExcel: "+ map.get(emp.getName()) + "\n PDF: "+ emp+ "\n isMatched: "+ map.get(emp.getName()).equals(emp));
+//						else
+//							System.out.println("\nExcel record is not exist: "+emp);
+						
+						//Logic to write the non-matching records into File.
 					}
 					i = (i + 2) < list.length ? i + 2 :
 							i + 1;
 				}
-				builder.employee(empList);
+				
+				//builder.employee(empList);
 			}else if(str.contains(INVOICE_NO.getVal())) {
 				builder.invoiceNumber(getInvoiceNo.apply(str));
 			}else if(str.contains(INVOICE_DATE.getVal())) {
 				builder.invoiceDate(getInvoiceDate.apply(str));
 			}else if(str.contains(ATTN.getVal())) {
-				builder.attn1(getAttn.apply(str));
+				attn = getAttn.apply(str);
+			}else if(str.startsWith(Invoice.PO.getVal())) {
+				po = getPO.apply(str);
 			}
 		}
 		return builder.build();
 	};
 
-	public static InvoiceModel buildInvoiceModel(String[] lines) {
-		return builder.build(lines);
+	public static InvoiceModel verifyInvoiceDetailsWithExcel(String[] lines, Map<String, Employee> empDetailMap) {
+		return builder.verifyInvoiceDetails(lines, empDetailMap);
+	}
+	
+	public static Map<String, Employee> readExcel(String filePath) {
+		//XSSFWorkbook workbook = null;
+		try(XSSFWorkbook workbook= new XSSFWorkbook(new FileInputStream(new File(filePath)))) {
+			XSSFSheet worksheet = null;
+			Map<String, Employee> empMap = new HashMap<>();
+			for (int k = 0; k < workbook.getNumberOfSheets(); k++) {
+//				System.out.println("Sheet No: "+ k);
+				worksheet = workbook.getSheetAt(k);
+				if(worksheet.getRow(0) == null || !worksheet.getRow(0).getCell(0).getStringCellValue().equals(Invoice.EMP_NO.getVal()))
+					continue;
+				for (int i = 1; i < worksheet.getPhysicalNumberOfRows(); i++) {
+					XSSFRow row = worksheet.getRow(i);
+					// row.getCell(5).setCellType(Cell.CELL_TYPE_STRING);
+					row.getCell(15).setCellType(Cell.CELL_TYPE_STRING);
+					row.getCell(17).setCellType(Cell.CELL_TYPE_STRING);
+					row.getCell(29).setCellType(Cell.CELL_TYPE_STRING);
+					//row.getCell(30).setCellType(Cell.CELL_TYPE_STRING);
+					//row.getCell(31).setCellType(Cell.CELL_TYPE_STRING);
+					String empName = row.getCell(5).getStringCellValue();
+					// System.out.println(row.getCell(0).getStringCellValue());
+					EmployeeBuilder e = Employee.builder()
+							.name(empName)
+							.poNo(row.getCell(15).getStringCellValue())
+							.attn(row.getCell(17).getStringCellValue())
+							.qty(row.getCell(29).getStringCellValue())
+							.rate(String.format("%,.2f",row.getCell(30).getNumericCellValue()))
+							.amt(String.format("%,.2f",row.getCell(31).getNumericCellValue()));
+					empMap.put(empName, e.build());
+				}
+				//System.out.println("Collected record count: "+empMap.size());
+			}
+			//
+			//System.out.println(empMap);
+			return empMap;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			
+		}
+		return null;
 	}
 }

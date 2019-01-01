@@ -6,8 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -26,9 +24,24 @@ public class PdfReaderApplication {
 	private static String BASE_PATH = "";
 	private static final String LOG_EXT = ".csv";
 
-	static Consumer<List<Object>> PROCESSOR = list -> {
+	static Consumer<DataCarrier> processor = carrier -> {
 		
-		readPDFAndVerify(list.get(0).toString(), (Map<String, Employee>) list.get(1), (Path)list.get(2));
+		try (PDDocument document = PDDocument.load(new File(carrier.getPdfFilePath()))) {
+			document.getClass();
+			if (!document.isEncrypted()) {
+				PDFTextStripper tStripper = new PDFTextStripper();
+				String pdfFileInText = tStripper.getText(document);
+				String lines[] = pdfFileInText.split("\\r?\\n");
+				carrier.setPdfData(lines);
+				//System.out.println(InvoicingUtility.verifyInvoiceDetailsWithExcel(lines, carrier.getExcelData(), carrier.getUnmatchedRecordFilePath()));
+				InvoicingUtility.validateData(carrier);
+			}
+		} catch (InvalidPasswordException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		//readPDFAndVerify(list.get(0).toString(), (Map<String, Employee>) list.get(1), (Path)list.get(2));
 
 	};
 
@@ -50,7 +63,11 @@ public class PdfReaderApplication {
 				
 				Files.list(Paths.get(BASE_PATH)).filter(s -> {
 					return s.toString().endsWith(".PDF");
-				}).forEach(o -> PROCESSOR.accept(Arrays.asList(o, empDetailMap, p)));
+				}).forEach(o -> processor.accept(DataCarrier.builder()
+						.pdfFilePath(o.toFile().toString())
+						.excelData(empDetailMap)
+						.unmatchedRecordFilePath(p)
+						.build()));
 				;
 
 			} catch (IOException e) {
@@ -83,21 +100,21 @@ public class PdfReaderApplication {
 		}
 	}
 
-	public static void readPDFAndVerify(String filePath, Map<String, Employee> empDetailMap, Path path) {
-		System.out.println("Processing file >> " + filePath);
-		try (PDDocument document = PDDocument.load(new File(filePath))) {
-			document.getClass();
-			if (!document.isEncrypted()) {
-				PDFTextStripper tStripper = new PDFTextStripper();
-				String pdfFileInText = tStripper.getText(document);
-				String lines[] = pdfFileInText.split("\\r?\\n");
-				System.out.println(InvoicingUtility.verifyInvoiceDetailsWithExcel(lines, empDetailMap, path));
-			}
-		} catch (InvalidPasswordException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+//	public static void readPDFAndVerify(String filePath, Map<String, Employee> empDetailMap, Path path) {
+//		//System.out.println("Processing file >> " + filePath);
+//		try (PDDocument document = PDDocument.load(new File(filePath))) {
+//			document.getClass();
+//			if (!document.isEncrypted()) {
+//				PDFTextStripper tStripper = new PDFTextStripper();
+//				String pdfFileInText = tStripper.getText(document);
+//				String lines[] = pdfFileInText.split("\\r?\\n");
+//				System.out.println(InvoicingUtility.verifyInvoiceDetailsWithExcel(lines, empDetailMap, path));
+//			}
+//		} catch (InvalidPasswordException e) {
+//			e.printStackTrace();
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//	}
 
 }

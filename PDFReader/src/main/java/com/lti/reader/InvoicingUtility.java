@@ -76,10 +76,13 @@ public class InvoicingUtility {
 	//Extract Purchase order
 	static Function<String, String> getPO = str -> str.split(" ")[2];
 	
-	private static InvoiceBuilder builder = (list, map, path) -> {
+	private static InvoiceBuilder builder = carrier -> {
 		String attn = null, po = null;
+		String[] list = carrier.getPdfData();
+		Map<String, Employee> map = carrier.getExcelData();
+		
 		InvoiceModelBuilder builder =  InvoiceModel.builder();
-		try (BufferedWriter writer = Files.newBufferedWriter(path)) {
+		try (BufferedWriter writer = Files.newBufferedWriter(carrier.getUnmatchedRecordFilePath())) {
 			for (int i = 0; i < list.length; i++) {
 				String str = list[i];
 				if (str.contains(BILLING_PERIOD.getVal())) {
@@ -122,12 +125,16 @@ public class InvoicingUtility {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} 
-		return builder.build();
+		//return builder.build();
 	};
-
-	public static InvoiceModel verifyInvoiceDetailsWithExcel(String[] lines, Map<String, Employee> empDetailMap, Path path) {
-		return builder.verifyInvoiceDetails(lines, empDetailMap, path);
+	
+	public static void validateData(DataCarrier carrier) {
+		builder.verifyInvoiceDetails(carrier);
 	}
+
+//	public static InvoiceModel verifyInvoiceDetailsWithExcel(String[] lines, Map<String, Employee> empDetailMap, Path path) {
+//		return builder.verifyInvoiceDetails(lines, empDetailMap, path);
+//	}
 	
 	public static Map<String, Employee> readExcel(String filePath) {
 		//XSSFWorkbook workbook = null;

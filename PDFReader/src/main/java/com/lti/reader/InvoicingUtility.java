@@ -10,10 +10,12 @@ import static com.lti.reader.Invoice.OFFSITE_HRS;
 import static com.lti.reader.Invoice.ONSITE_HRS;
 import static com.lti.reader.Invoice.PERSON_HRS;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -74,48 +76,57 @@ public class InvoicingUtility {
 	//Extract Purchase order
 	static Function<String, String> getPO = str -> str.split(" ")[2];
 	
-	private static InvoiceBuilder builder = (list, map) -> {
+	private static InvoiceBuilder builder = (list, map, path) -> {
 		String attn = null, po = null;
 		InvoiceModelBuilder builder =  InvoiceModel.builder();
-		for (int i = 0; i < list.length; i++) {
-			String str = list[i];
-			if (str.contains(BILLING_PERIOD.getVal())) {
-				builder.billingPeriod(extractBillingPeriod.apply(str));
-			}else if (str.startsWith(ANNEX_HEADER.getVal())) {
-				i++;
-				for (; i < list.length;) {
-					if (list[i].contains(FINAL_TOTAL.getVal())) {
-						builder.total(extractFinalTotal.apply(str));
-					} else {
-						//empList.add(getEmployeeDetails.apply(Arrays.asList(list[i], list[i+1], attn)));
-						Employee emp = getEmployeeDetails.apply(Arrays.asList(list[i], list[i+1], attn, po));
+		try (BufferedWriter writer = Files.newBufferedWriter(path)) {
+			for (int i = 0; i < list.length; i++) {
+				String str = list[i];
+				if (str.contains(BILLING_PERIOD.getVal())) {
+					builder.billingPeriod(extractBillingPeriod.apply(str));
+				} else if (str.startsWith(ANNEX_HEADER.getVal())) {
+					i++;
+					for (; i < list.length;) {
+						if (list[i].contains(FINAL_TOTAL.getVal())) {
+							builder.total(extractFinalTotal.apply(str));
+						} else {
+							// empList.add(getEmployeeDetails.apply(Arrays.asList(list[i], list[i+1],
+							// attn)));
+							Employee emp = getEmployeeDetails.apply(Arrays.asList(list[i], list[i + 1], attn, po));
 //						if(map.get(emp.getName()) != null)
 //							System.out.println("\nExcel: "+ map.get(emp.getName()) + "\n PDF: "+ emp+ "\n isMatched: "+ map.get(emp.getName()).equals(emp));
 //						else
 //							System.out.println("\nExcel record is not exist: "+emp);
-						
-						//Logic to write the non-matching records into File.
+
+							// Logic to write the non-matching records into File.
+							if(map.get(emp.getName()) != null && !map.get(emp.getName()).equals(emp)) {
+								writer.write(emp.toString());
+								writer.newLine();
+							}
+						}
+						i = (i + 2) < list.length ? i + 2 : i + 1;
 					}
-					i = (i + 2) < list.length ? i + 2 :
-							i + 1;
+
+					// builder.employee(empList);
+				} else if (str.contains(INVOICE_NO.getVal())) {
+					builder.invoiceNumber(getInvoiceNo.apply(str));
+				} else if (str.contains(INVOICE_DATE.getVal())) {
+					builder.invoiceDate(getInvoiceDate.apply(str));
+				} else if (str.contains(ATTN.getVal())) {
+					attn = getAttn.apply(str);
+				} else if (str.startsWith(Invoice.PO.getVal())) {
+					po = getPO.apply(str);
 				}
-				
-				//builder.employee(empList);
-			}else if(str.contains(INVOICE_NO.getVal())) {
-				builder.invoiceNumber(getInvoiceNo.apply(str));
-			}else if(str.contains(INVOICE_DATE.getVal())) {
-				builder.invoiceDate(getInvoiceDate.apply(str));
-			}else if(str.contains(ATTN.getVal())) {
-				attn = getAttn.apply(str);
-			}else if(str.startsWith(Invoice.PO.getVal())) {
-				po = getPO.apply(str);
 			}
-		}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
 		return builder.build();
 	};
 
-	public static InvoiceModel verifyInvoiceDetailsWithExcel(String[] lines, Map<String, Employee> empDetailMap) {
-		return builder.verifyInvoiceDetails(lines, empDetailMap);
+	public static InvoiceModel verifyInvoiceDetailsWithExcel(String[] lines, Map<String, Employee> empDetailMap, Path path) {
+		return builder.verifyInvoiceDetails(lines, empDetailMap, path);
 	}
 	
 	public static Map<String, Employee> readExcel(String filePath) {

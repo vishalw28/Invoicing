@@ -11,7 +11,7 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+//@ToString(includeFieldNames=false)
 @EqualsAndHashCode
 public class Employee {
 	private String name;
@@ -26,4 +26,9 @@ public class Employee {
 	private String amt;
 	private String poNo;
 	private String attn;
+	
+	@Override
+	public String toString() {
+		return name + ", "+ qty + ", "+ uom +", "+ rate +", "+ amt +", "+ poNo +", "+ attn;
+	}
 }

@@ -29,11 +29,11 @@
 			<artifactId>spring-boot-devtools</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-		<dependency>
+		<!--  <dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
-		</dependency>
+		</dependency>  -->
 
 		<!-- PDF reader dependency -->
 		<dependency>
@@ -54,6 +54,8 @@
 			<artifactId>poi-ooxml</artifactId>
 			<version>3.15</version>
 		</dependency>
+		<!-- <dependency> <groupId>org.apache.poi</groupId> <artifactId>poi-ooxml</artifactId> 
+			<version>3.11</version> </dependency> -->
 	</dependencies>
 	<build>
 		<plugins>
@@ -74,6 +76,44 @@
 					</execution>
 				</executions>
 			</plugin>
+			<!-- <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-dependencies</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>
+								${project.build.directory}/libs
+							</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+ 			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+							<!--<classpathPrefix>libs/</classpathPrefix> -->
+							<mainClass>
+								com.lti.reader.PdfReaderApplication
+							</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+			<!-- Uncomment to work from home. -->
+			<!--<plugin> <artifactId>maven-compiler-plugin</artifactId> <configuration> 
+				<fork>true</fork> <executable>C:\Program Files\Java\jdk1.8.0_51\bin\javac.exe</executable> 
+				</configuration> </plugin> -->
 		</plugins>
 	</build>
 

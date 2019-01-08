@@ -11,7 +11,7 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+//@ToString(includeFieldNames=false)
 @EqualsAndHashCode
 public class Employee {
 	private String name;
@@ -26,4 +26,16 @@ public class Employee {
 	private String amt;
 	private String poNo;
 	private String attn;
+	@EqualsAndHashCode.Exclude
+	private String pdfPath;
+	
+	//Change the sequence as per the toString() method.
+	static String getColumnHeader() {
+		return "Name, Qty, Rate, Amt,PO No, Attn, PDF Path";
+	}
+	
+	@Override
+	public String toString() {
+		return name + ", "+ qty + ", "+ rate +", "+ amt +", "+ poNo +", "+ attn;
+	}
 }
